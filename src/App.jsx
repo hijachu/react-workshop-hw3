@@ -114,6 +114,22 @@ function Logout() {
   </>)
 }
 
+function TodoList() {
+  const [todoList, setTodoList] = useState([])
+  const [newTodo, setNewTodo] = useState('')
+  const [result, setResult] = useState('')
+
+  const addNewTodo = async () => {
+
+  }
+  return (<>
+    <h2>Todo List</h2>
+    <input type="text" placeholder="New Todo" value={newTodo} onChange={e => setNewTodo(e.target.value)} />
+    <button onClick={addNewTodo}>Add Todo</button>
+    <p>{result}</p>
+  </>)
+}
+
 function App() {
 
   return (
@@ -125,6 +141,9 @@ function App() {
       <Login />
       <Validation />
       <Logout />
+
+      <hr />
+      <TodoList />
     </>
   )
 }
