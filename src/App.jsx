@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import 'bootstrap/scss/bootstrap.scss'
 import axios from 'axios';
 
@@ -114,23 +114,65 @@ function Logout() {
   </>)
 }
 
-function TodoList() {
+function TodoList({token}) {
   const [todoList, setTodoList] = useState([])
   const [newTodo, setNewTodo] = useState('')
-  const [result, setResult] = useState('')
+  const [todoEdit, setTodoEdit] = useState({})
+
+  const getTodoList = async () => {
+    const response = await axios.get(`${api_server}/todos`, {
+      headers: {
+        Authorization: token,
+      },
+    });
+    setTodoList(response.data.data);
+  };
+
 
   const addNewTodo = async () => {
+    if (!newTodo) return;
+    const todo = {
+      content: newTodo,
+    };
+    await axios.post(`${api_server}/todos`, todo, {
+      headers: {
+        Authorization: token,
+      },
+    });
+    setNewTodo('');
+    getTodoList();
+  };
 
-  }
+  useEffect(() => {
+    getTodoList();
+  }, []);
+
   return (<>
     <h2>Todo List</h2>
     <input type="text" placeholder="New Todo" value={newTodo} onChange={e => setNewTodo(e.target.value)} />
     <button onClick={addNewTodo}>Add Todo</button>
-    <p>{result}</p>
+    {
+      token && <>
+        <ul>
+          { todoList.map((todo, index) => <li key={index}>{todo.content}</li>) }
+        </ul>
+      </>
+    }
   </>)
 }
 
 function App() {
+  const [token, setToken] = useState('');
+  const TodoToken = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('hexschoolTodo='))
+    ?.split('=')[1];
+
+  useEffect(() => {
+    if (TodoToken) {
+      setToken(TodoToken);
+    }
+  }, []);
 
   return (
     <>
@@ -143,7 +185,7 @@ function App() {
       <Logout />
 
       <hr />
-      <TodoList />
+      <TodoList token={token} />
     </>
   )
 }
