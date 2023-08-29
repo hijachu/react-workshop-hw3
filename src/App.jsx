@@ -12,11 +12,14 @@ function Register () {
 
   const register = async () => {
     try {
-      const response = await axios.post(`${api_server}/users/sign_up`, {
-        email,
-        password,
-        nickname,
-      });
+      const response = await axios.post(
+        `${api_server}/users/sign_up`,
+        {
+          email,
+          password,
+          nickname,
+        }
+      );
 
       setResult(`Register Successful. UID: ${response.data.uid}`);
 
@@ -42,12 +45,16 @@ function Login () {
 
   const login = async () => {
     try {
-      const response = await axios.post(`${api_server}/users/sign_in`, {
-        email,
-        password
-      });
+      const response = await axios.post(
+        `${api_server}/users/sign_in`,
+        {
+          email,
+          password
+        }
+      );
       // console.log(response);
       setToken(response.data.token)
+
     } catch (error) {
       setToken(`Login Failed: ${error.message}`);
     }
@@ -62,19 +69,34 @@ function Login () {
   </>)
 }
 
-function Validation() {
-  const [token, setToken] = useState('')
+function Validation({token, setToken}) {
   const [result, setResult] = useState('')
 
   const validate = async () => {
+    // 設定 Token 儲存到 cookie，到期日為明天
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    document.cookie = `hexschoolTodo=${token}; expires=${tomorrow.toUTCString()}`;
+
+    console.log(
+      document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('hexschoolTodo')),
+    );
+
     try {
-      const response = await axios.get(`${api_server}/users/checkout`, {
-        headers: {
-          authorization: token
+      const response = await axios.get(
+        `${api_server}/users/checkout`,
+        {
+          headers: {
+            authorization: token
+          }
         }
-      });
-      // console.log(response);
+      );
+
       setResult(`UID: ${response.data.uid}`)
+
     } catch (error) {
       setResult(`Validate Failed: ${error.message}`);
     }
@@ -94,13 +116,19 @@ function Logout() {
 
   const logout = async () => {
     try {
-      const response = await axios.post(`${api_server}/users/sign_out`, {}, {
-        headers: {
-          authorization: token
+      const response = await axios.post(
+        `${api_server}/users/sign_out`,
+        {},
+        {
+          headers: {
+            authorization: token
+          }
         }
-      });
+      );
+
       // console.log(response);
       setResult(response.data.message)
+
     } catch (error) {
       setResult(`Logout Failed: ${error.message}`);
     }
@@ -120,31 +148,92 @@ function TodoList({token}) {
   const [todoEdit, setTodoEdit] = useState({})
 
   const getTodoList = async () => {
-    const response = await axios.get(`${api_server}/todos`, {
-      headers: {
-        Authorization: token,
-      },
-    });
+    const response = await axios.get(
+      `${api_server}/todos`,
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+
     setTodoList(response.data.data);
   };
 
-
   const addNewTodo = async () => {
     if (!newTodo) return;
+
     const todo = {
       content: newTodo,
     };
-    await axios.post(`${api_server}/todos`, todo, {
-      headers: {
-        Authorization: token,
-      },
-    });
+
+    await axios.post(
+      `${api_server}/todos`,
+      todo,
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+
     setNewTodo('');
+
+    getTodoList();
+  };
+
+  const deleteTodo = async (id) => {
+    await axios.delete(
+      `${api_server}/todos/${id}`,
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+
+    getTodoList();
+  };
+
+  const updateTodo = async (id) => {
+    const todo = todoList.find((todo) => todo.id === id);
+    todo.content = todoEdit[id]
+
+    await axios.put(
+      `${api_server}/todos/${id}`,
+      todo,
+      {
+        headers: {
+          Authorization: token,
+        },
+      }
+    );
+
+    getTodoList();
+
+    setTodoEdit({
+      ...todoEdit,
+      [id]: ''
+    })
+  };
+
+  const toggleStatus = async (id) => {
+    await axios.patch(
+      `${api_server}/todos/${id}/toggle`,
+      {},
+      {
+        headers: {
+          Authorization: token,
+        },
+      },
+    );
+
     getTodoList();
   };
 
   useEffect(() => {
-    getTodoList();
+    if (token)
+      getTodoList();
   }, []);
 
   return (<>
@@ -152,25 +241,42 @@ function TodoList({token}) {
     <input type="text" placeholder="New Todo" value={newTodo} onChange={e => setNewTodo(e.target.value)} />
     <button onClick={addNewTodo}>Add Todo</button>
     {
-      token && <>
+      token &&
         <ul>
-          { todoList.map((todo, index) => <li key={index}>{todo.content}</li>) }
+          {
+            todoList.map((todo, index) => <li key={index}>
+              {todo.content}
+              {todo.status ? '完成' : '未完成'} | {todoEdit[todo.id]}
+              <input type="text" placeholder='更新值' onChange={
+                (e) => {
+                  const newTodoEdit = {
+                    ...todoEdit
+                  }
+                  newTodoEdit[todo.id] = e.target.value
+                  setTodoEdit(newTodoEdit)
+                }
+              } />
+              <button onClick={() => deleteTodo(todo.id)}>Delete</button>
+              <button onClick={() => updateTodo(todo.id)}>Update</button>
+              <button onClick={() => toggleStatus(todo.id)}>Toggle Status</button>
+            </li>)
+          }
         </ul>
-      </>
     }
   </>)
 }
 
 function App() {
   const [token, setToken] = useState('');
-  const TodoToken = document.cookie
+
+  const CookieToken = document.cookie
     .split('; ')
     .find((row) => row.startsWith('hexschoolTodo='))
     ?.split('=')[1];
 
   useEffect(() => {
-    if (TodoToken) {
-      setToken(TodoToken);
+    if (CookieToken) {
+      setToken(CookieToken);
     }
   }, []);
 
@@ -181,7 +287,7 @@ function App() {
 
       <Register />
       <Login />
-      <Validation />
+      <Validation token={token} setToken={setToken} />
       <Logout />
 
       <hr />
